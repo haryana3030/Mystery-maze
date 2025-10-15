@@ -269,7 +269,7 @@
                         <p id="riddle-text" class="text-base sm:text-lg md:text-xl mb-2 sm:mb-4 font-bold"></p>
                         <input id="answer-input" type="text" placeholder="ENTER ANSWER IN CAPS" class="p-2 rounded bg-gray-900 border border-yellow-400 text-white uppercase input-glow">
                         <button id="submit-answer" class="mt-2 sm:mt-4 px-4 sm:px-6 py-1 sm:py-2 bg-yellow-600 text-black rounded-lg font-bold btn-glow">Cast Spell</button>
-                        <p id="attempts-text" class="mt-2 text-sm sm:text-base">Attempts left: 4</p>
+                        <p id="attempts-text" class="mt-2 text-sm sm:text-base">Attempts left: 5</p>
                         <p id="timer-text" class="mt-1 text-sm sm:text-base">Time: 0s</p>
                     </div>
                     <div class="card-back flex flex-col justify-center items-center text-center">
@@ -298,8 +298,8 @@
 // Remove the const riddles = [...] array
 
 let team = {
-    id: "TEAM01",
-    name: "Gryffindor",
+    id: null, // This will be the roll number from localStorage
+    name: "Gryffindor", // This can be set after login
     score: 0
 };
 
@@ -326,17 +326,10 @@ let allRiddles = [];
 let teamRiddles = [];
 
 // ------------------------- UNIQUE USER IDENTIFIER & SEEDED SHUFFLE -------------------------
-function getOrCreateUserId() {
-    let userId = localStorage.getItem('riddleQuestUserId');
-    if (!userId) {
-        userId = 'user_' + new Date().getTime() + Math.random().toString(36).substring(2, 10);
-        localStorage.setItem('riddleQuestUserId', userId);
-    }
-    return userId;
+// This function is now simplified, as the roll number is the ID
+function getUserId() {
+    return localStorage.getItem('roll');
 }
-
-const userId = getOrCreateUserId();
-team.id = userId;
 
 function hashString(str) {
     let hash = 0;
@@ -369,7 +362,7 @@ function shuffleArray(array, seed) {
 // ------------------------- GAME STATE -------------------------
 let currentRiddleIndex = 0;
 let attemptsUsed = 0;
-let maxAttempts = 5; // Updated to 5 attempts
+let maxAttempts = 5;
 let attemptsLeft = maxAttempts;
 let timer = 0;
 let timerInterval = null;
@@ -408,6 +401,14 @@ sidebarToggle.addEventListener('click', () => {
 
 // ------------------------- INIT GAME FUNCTION -------------------------
 async function initGame() {
+    const rollNumber = getUserId();
+    if (!rollNumber) {
+        alert("Please log in to start the quest.");
+        window.location.href = 'login.html';
+        return;
+    }
+    team.id = rollNumber;
+
     getRiddleBtn.classList.add('hidden');
     riddleCard.classList.remove('hidden');
     progressMap.classList.remove('hidden');
@@ -418,7 +419,7 @@ async function initGame() {
         
         if (data.success && data.questions && data.questions.length > 0) {
             allRiddles = data.questions;
-            teamRiddles = shuffleArray([...allRiddles], userId);
+            teamRiddles = shuffleArray([...allRiddles], team.id);
             
             progressMap.innerHTML = '';
             teamRiddles.forEach(() => {
@@ -427,6 +428,8 @@ async function initGame() {
                 progressMap.appendChild(span);
             });
             
+            await updateScoreDisplay();
+
             loadRiddle();
         } else {
             console.error("Failed to fetch riddles:", data.message);
@@ -471,7 +474,7 @@ function loadRiddle() {
     riddleText.textContent = teamRiddles[currentRiddleIndex].question;
     backText.textContent = '';
     cardInner.style.transform = 'rotateY(0deg)';
-    submitBtn.disabled = false; // Enable the button for the new riddle
+    submitBtn.disabled = false;
     startTimer();
 }
 
@@ -480,8 +483,8 @@ function calculatePoints(attempt) {
     if (attempt === 1) return 10;
     if (attempt === 2) return 8;
     if (attempt === 3) return 6;
-    if (attempt === 4) return 4; // Adjusted points for 4th attempt
-    if (attempt === 5) return 2; // Adjusted points for 5th attempt
+    if (attempt === 4) return 4;
+    if (attempt === 5) return 2;
     return 0;
 }
 
@@ -500,7 +503,7 @@ submitBtn.addEventListener('click', async () => {
     const userAnswer = answerInput.value.trim().toUpperCase();
     if (!userAnswer) return;
 
-    submitBtn.disabled = true; // Disable the button immediately
+    submitBtn.disabled = true;
 
     attemptsUsed++;
     let correct = false;
@@ -538,7 +541,7 @@ submitBtn.addEventListener('click', async () => {
                 setTimeout(() => {
                     cardInner.style.transform = 'rotateY(0deg)';
                     backText.textContent = '';
-                    submitBtn.disabled = false; // Re-enable for another attempt
+                    submitBtn.disabled = false;
                 }, 1500);
             } else {
                 clearInterval(timerInterval);
@@ -556,7 +559,7 @@ submitBtn.addEventListener('click', async () => {
     } catch (error) {
         console.error('Error checking answer:', error);
         backText.textContent = "Error checking answer. Please try again.";
-        submitBtn.disabled = false; // Re-enable on error
+        submitBtn.disabled = false;
     }
 });
 
@@ -570,7 +573,8 @@ async function saveRiddleResult(correct, points) {
         time_taken_seconds: timer,
         points_awarded: points,
         correct: correct,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        rollNumber: team.id
     };
     teamResults.push(result);
     console.log("Sending to backend:", result);
@@ -611,6 +615,23 @@ async function updateLeaderboard() {
 
 // Poll leaderboard every 5s for real-time
 setInterval(updateLeaderboard, 5000);
+
+// ------------------------- UPDATE SCORE DISPLAY -------------------------
+async function updateScoreDisplay() {
+    const rollNumber = getUserId();
+    if (!rollNumber) return;
+
+    try {
+        const res = await fetch(`${backendUrl}?path=getScores&rollNumber=${rollNumber}`);
+        const data = await res.json();
+        if (data.success) {
+            team.score = data.score;
+            scoreDisplay.textContent = `Points: ${team.score}`;
+        }
+    } catch (error) {
+        console.error("Error updating score display:", error);
+    }
+}
 
 // ------------------------- FINAL LEADERBOARD -------------------------
 function showFinalLeaderboard() {
@@ -671,7 +692,8 @@ function updateParallax() {
 requestAnimationFrame(updateParallax);
 
 // ------------------------- INIT -------------------------
-updateLeaderboard();
+// Call initGame when the page loads to check for the user's roll number
+window.onload = initGame;
 </script>
 </body>
 </html>
