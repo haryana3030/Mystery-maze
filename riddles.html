@@ -1,215 +1,729 @@
-/**
- * This function handles the OPTIONS preflight request for CORS.
- * It is essential for allowing cross-origin POST requests from your Vercel site.
- */
-function doOptions() {
-  return ContentService.createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT)
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Harry Potter Riddle Quest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Harry+P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: url('greathall.png') no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'MedievalSharp', cursive;
+            color: #FFD700;
+            margin: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
+            touch-action: manipulation;
+        }
+        #parallax-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: url('greathall.png') no-repeat center center;
+            background-size: cover;
+            transform: translateZ(-1px) scale(1.2);
+            transition: transform 0.3s ease-out;
+        }
+        .header {
+            background: rgba(0, 0, 0, 0.7);
+            border-bottom: 2px solid #FFD700;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding: 0.5rem 1rem;
+        }
+        .sidebar {
+            background: rgba(0, 0, 0, 0.8);
+            border-left: 2px solid #FFD700;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+            perspective: 1000px;
+            width: 100%;
+            max-height: 40vh;
+            position: fixed;
+            bottom: 0;
+            border-top: 2px solid #FFD700;
+            z-index: 20;
+            transform: translateY(100%);
+        }
+        .sidebar.open {
+            transform: translateY(0);
+        }
+        .sidebar-toggle {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 30;
+            background: #FFD700;
+            color: #1a1a1a;
+            padding: 0.5rem;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(255,215,0,0.8);
+        }
+        @media (min-width: 768px) {
+            .sidebar {
+                width: 20rem;
+                max-height: none;
+                position: static;
+                border-top: none;
+                border-left: 2px solid #FFD700;
+                transform: none;
+            }
+            .sidebar-toggle {
+                display: none;
+            }
+        }
+        .main-content {
+            flex-direction: column;
+            min-height: calc(100vh - 4rem);
+        }
+        .riddle-card {
+            perspective: 2000px;
+            transform-style: preserve-3d;
+            animation: float 6s ease-in-out infinite;
+            margin-bottom: 2rem;
+            width: 90%;
+            max-width: 28rem;
+            height: 24rem;
+        }
+        @media (min-width: 640px) {
+            .riddle-card {
+                margin-bottom: 1rem;
+                max-width: 32rem;
+                height: 28rem;
+            }
+        }
+        .card-inner {
+            transition: transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transform-style: preserve-3d;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6), 0 0 20px rgba(255,215,0,0.3);
+            height: 100%;
+        }
+        .card-front, .card-back {
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(139,0,0,0.9), rgba(0,0,0,0.9));
+            border: 2px solid #FFD700;
+            box-shadow: inset 0 0 10px #FFD700;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+            background: linear-gradient(135deg, rgba(0,100,0,0.9), rgba(0,0,0,0.9));
+        }
+        .progress-map {
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            padding: 0.5rem;
+            max-width: 90%;
+        }
+        .progress-icon {
+            transition: transform 0.5s ease, color 0.3s;
+            animation: pulse 2s infinite;
+            font-size: 0.75rem;
+        }
+        .progress-icon.completed {
+            transform: scale(1.3) rotate(360deg);
+            animation: none;
+        }
+        .leaderboard-item {
+            transition: background 0.3s, transform 0.2s;
+            transform-style: preserve-3d;
+            transform: rotateX(5deg) rotateY(10deg);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            animation: leaderboard-float 4s ease-in-out infinite;
+            font-size: 0.875rem;
+            padding: 0.5rem;
+        }
+        .leaderboard-item:hover {
+            background: rgba(255,215,0,0.3);
+            transform: translateX(5px) rotateX(0deg) rotateY(0deg);
+        }
+        .parallax {
+            transition: transform 0.2s ease-out;
+        }
+        .input-glow {
+            transition: box-shadow 0.3s;
+            font-size: 0.875rem;
+            padding: 0.5rem;
+            width: 100%;
+            max-width: 20rem;
+        }
+        .input-glow:focus {
+            box-shadow: 0 0 15px #FFD700;
+            outline: none;
+        }
+        .btn-glow {
+            transition: box-shadow 0.3s, transform 0.2s;
+            padding: 0.5rem 1.5rem;
+            font-size: 0.875rem;
+        }
+        .btn-glow:hover {
+            box-shadow: 0 0 20px #FFD700;
+            transform: scale(1.05);
+        }
+        #get-riddle-btn {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+            animation: button-float 4s ease-in-out infinite;
+            background: linear-gradient(135deg, #FFD700, #DAA520);
+            border: 3px solid #FFD700;
+            box-shadow: 0 0 30px rgba(255,215,0,0.8), inset 0 0 15px rgba(255,255,255,0.4);
+            text-shadow: 0 0 10px rgba(0,0,0,0.7);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 0.75rem 2rem;
+            font-size: 1.25rem;
+            border-radius: 1rem;
+            color: #1a1a1a;
+            font-family: 'Harry P', sans-serif;
+            position: relative;
+            overflow: hidden;
+            z-index: 100;
+        }
+        #get-riddle-btn::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 10%, transparent 10.1%);
+            background-size: 15px 15px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            animation: sparkle 3s infinite;
+        }
+        #get-riddle-btn:hover::before {
+            opacity: 0.7;
+        }
+        #get-riddle-btn:hover {
+            transform: scale(1.1) rotateX(15deg) rotateY(15deg);
+            box-shadow: 0 0 40px rgba(255,215,0,1), inset 0 0 20px rgba(255,255,255,0.6);
+        }
+        #get-riddle-btn:active {
+            transform: scale(0.95) rotateX(10deg) rotateY(10deg);
+            box-shadow: 0 0 20px rgba(255,215,0,0.6), inset 0 0 10px rgba(255,255,255,0.3);
+        }
+        @media (min-width: 640px) {
+            #get-riddle-btn {
+                padding: 1rem 2.5rem;
+                font-size: 1.5rem;
+            }
+        }
+        @keyframes float {
+            0% { transform: translateY(0px) rotateX(0deg); }
+            50% { transform: translateY(-5px) rotateX(3deg); }
+            100% { transform: translateY(0px) rotateX(0deg); }
+        }
+        @keyframes leaderboard-float {
+            0% { transform: rotateX(5deg) rotateY(10deg) translateY(0); }
+            50% { transform: rotateX(8deg) rotateY(5deg) translateY(-3px); }
+            100% { transform: rotateX(5deg) rotateY(10deg) translateY(0); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        @keyframes button-float {
+            0% { transform: translateY(0px) rotateX(0deg) rotateY(0deg); }
+            50% { transform: translateY(-10px) rotateX(15deg) rotateY(15deg); }
+            100% { transform: translateY(0px) rotateX(0deg) rotateY(0deg); }
+        }
+        @keyframes sparkle {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(10%, 10%); }
+            100% { transform: translate(0, 0); }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen relative">
+    <div id="parallax-bg"></div>
+
+    <header class="header flex justify-between items-center w-full z-10">
+        <h1 class="text-2xl font-['Harry_P'] text-yellow-400 sm:text-3xl md:text-4xl">Riddle Quest⚡️</h1>
+        <div class="flex items-center space-x-2 sm:space-x-4">
+            <span id="score-display" class="text-base sm:text-xl">Points: 0</span>
+            <button id="mute-btn" class="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700"><i class="fas fa-volume-up"></i></button>
+        </div>
+    </header>
+
+    <main class="flex flex-1 overflow-hidden main-content">
+        <section class="flex-1 flex flex-col items-center justify-start p-2 sm:p-4 parallax">
+            <button id="get-riddle-btn" class="btn-glow">Get Riddle</button>
+            <div id="progress-map" class="progress-map flex justify-center mb-4 sm:mb-6 hidden"></div>
+
+            <div class="riddle-card relative hidden">
+                <div class="card-inner w-full h-full flex flex-col justify-center items-center">
+                    <div class="card-front flex flex-col justify-center items-center text-center">
+                        <p id="riddle-text" class="text-base sm:text-lg md:text-xl mb-2 sm:mb-4 font-bold"></p>
+                        <input id="answer-input" type="text" placeholder="ENTER ANSWER IN CAPS" class="p-2 rounded bg-gray-900 border border-yellow-400 text-white uppercase input-glow">
+                        <button id="submit-answer" class="mt-2 sm:mt-4 px-4 sm:px-6 py-1 sm:py-2 bg-yellow-600 text-black rounded-lg font-bold btn-glow">Cast Spell</button>
+                        <p id="attempts-text" class="mt-2 text-sm sm:text-base">Attempts left: 5</p>
+                        <p id="timer-text" class="mt-1 text-sm sm:text-base">Time: 0s</p>
+                    </div>
+                    <div class="card-back flex flex-col justify-center items-center text-center">
+                        <p id="back-text" class="text-base sm:text-lg md:text-xl mb-2 sm:mb-4 font-bold"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <aside id="sidebar" class="sidebar p-2 sm:p-4 flex flex-col">
+            <h2 class="text-lg sm:text-xl md:text-2xl mb-2 border-b border-yellow-400 pb-1">Leaderboard</h2>
+            <ul id="leaderboard-list" class="space-y-2"></ul>
+            <div id="team-stats" class="mt-4 sm:mt-6 hidden">
+                <h3 class="text-base sm:text-lg md:text-xl mb-2">Your Wand Stats</h3>
+                <ul id="stats-list" class="space-y-1 text-xs sm:text-sm"></ul>
+            </div>
+        </aside>
+        <button id="sidebar-toggle" class="sidebar-toggle"><i class="fas fa-bars"></i></button>
+    </main>
+
+    <audio id="correct-sound" src="https://www.soundjay.com/buttons/button-3.mp3"></audio>
+    <audio id="wrong-sound" src="https://www.soundjay.com/buttons/button-10.mp3"></audio>
+
+<script>
+// ------------------------- GOOGLE APPS SCRIPT URL -------------------------
+// !!! IMPORTANT: Replace this with your actual deployed Apps Script URL !!!
+const backendUrl = "YOUR_DEPLOYED_APPS_SCRIPT_URL_HERE";
+
+let team = {
+    id: null,
+    name: "Gryffindor",
+    score: 0
+};
+let userProgress = {};
+const praises = ["Bravo!", "Excellent!", "Lightning fast!", "Well done!", "Impressive!", "Superb!", "Outstanding!", "Magnificent!", "Brilliant!", "Fantastic!"];
+let allRiddles = [];
+let teamRiddles = [];
+let currentRiddleIndex = 0;
+let attemptsUsed = 0;
+let maxAttempts = 5;
+let attemptsLeft = maxAttempts;
+let timer = 0;
+let timerInterval = null;
+let muted = false;
+let mouseX = 0, mouseY = 0;
+let targetX = 0, targetY = 0;
+
+// ------------------------- ELEMENTS -------------------------
+const riddleText = document.getElementById('riddle-text');
+const answerInput = document.getElementById('answer-input');
+const submitBtn = document.getElementById('submit-answer');
+const attemptsText = document.getElementById('attempts-text');
+const timerText = document.getElementById('timer-text');
+const backText = document.getElementById('back-text');
+const leaderboardList = document.getElementById('leaderboard-list');
+const progressMap = document.getElementById('progress-map');
+const cardInner = document.querySelector('.card-inner');
+const muteBtn = document.getElementById('mute-btn');
+const teamStats = document.getElementById('team-stats');
+const statsList = document.getElementById('stats-list');
+const correctSound = document.getElementById('correct-sound');
+const wrongSound = document.getElementById('wrong-sound');
+const scoreDisplay = document.getElementById('score-display');
+const parallaxElements = document.querySelectorAll('.parallax');
+const parallaxBg = document.getElementById('parallax-bg');
+const getRiddleBtn = document.getElementById('get-riddle-btn');
+const riddleCard = document.querySelector('.riddle-card');
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+
+// ------------------------- UNIQUE USER IDENTIFIER & SEEDED SHUFFLE -------------------------
+function getUserId() {
+    return localStorage.getItem('roll');
 }
 
-/**
- * Handles all incoming GET requests (Login, Get Questions, Check Answer, Leaderboard).
- */
-function doGet(e) {
-  const path = e.parameter.path;
-
-  try {
-    switch (path) {
-      case "login":
-        return sendJSON(handleLogin(e.parameter));
-      case "getQuestions":
-        return sendJSON(getQuestions());
-      case "checkAnswer":
-        const qid = e.parameter.qid;
-        const answer = e.parameter.answer;
-        return sendJSON(checkAnswer(qid, answer));
-      case "leaderboard":
-        return sendJSON(getLeaderboard());
-      default:
-        return sendJSON({ success: false, message: "Invalid path" });
-    }
-  } catch (error) {
-    Logger.log(error);
-    return sendJSON({ success: false, message: "An error occurred.", error: error.message });
-  }
+function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0;
+    }
+    return hash;
 }
 
-/**
- * Handles all incoming POST requests (Saving Final Score).
- */
-function doPost(e) {
-  const path = e.parameter.path;
-  
-  try {
-    if (path === "saveFinalScore") {
-      const data = JSON.parse(e.postData.contents);
-      saveFinalScore(data.rollNumber, data.score);
-      return sendJSON({ success: true, message: "Final score saved successfully." });
-    } else {
-      return sendJSON({ success: false, message: "Invalid path or method" });
-    }
-  } catch (error) {
-    Logger.log(error);
-    return sendJSON({ success: false, message: "An error occurred.", error: error.message });
-  }
+function mulberry32(seed) {
+    return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
 }
 
-/**
- * Handles the login logic.
- */
-function handleLogin(parameters) {
-  const roll = parameters.roll;
-  const phone = parameters.phone;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const userSheet = ss.getSheetByName("users");
-  if (!userSheet) {
-    return { success: false, message: "User sheet not found." };
-  }
-  const data = userSheet.getDataRange().getValues();
-  
-  let found = false;
-  for (let i = 1; i < data.length; i++) {
-    const sheetRoll = data[i][0];
-    const sheetPhone = data[i][1];
-    if (sheetRoll.toString() === roll.toString() && sheetPhone.toString() === phone.toString()) {
-      found = true;
-      break;
-    }
-  }
-  
-  return found ? { success: true, message: "Login successful!", rollNumber: roll } : { success: false, message: "Invalid Roll No or Phone." };
+function shuffleArray(array, seed) {
+    const rand = mulberry32(hashString(seed));
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
 }
 
-/**
- * Retrieves all riddles from the "questions" sheet.
- */
-function getQuestions() {
-  const qSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("questions");
-  if (!qSheet) {
-    return { success: false, message: "Questions sheet not found." };
-  }
-  const data = qSheet.getDataRange().getValues();
-  const questions = [];
+// ------------------------- SIDEBAR TOGGLE -------------------------
+sidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    sidebarToggle.innerHTML = sidebar.classList.contains('open') ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+});
 
-  for (let i = 1; i < data.length; i++) {
-    const [qid, question] = data[i]; 
-    questions.push({
-      qid: qid.toString().trim(),
-      question: question.toString().trim()
-    });
-  }
+// ------------------------- INIT GAME FUNCTION -------------------------
+async function initGame() {
+    const rollNumber = getUserId();
+    if (!rollNumber) {
+        alert("Please log in to start the quest.");
+        window.location.href = 'login.html';
+        return;
+    }
+    team.id = rollNumber;
 
-  return { success: true, questions: questions };
+    getRiddleBtn.classList.add('hidden');
+    riddleCard.classList.remove('hidden');
+    progressMap.classList.remove('hidden');
+
+    try {
+        const riddlesRes = await fetch(`${backendUrl}?path=getQuestions`);
+        const riddlesData = await riddlesRes.json();
+        
+        if (riddlesData.success && riddlesData.questions && riddlesData.questions.length > 0) {
+            allRiddles = riddlesData.questions;
+            
+            const localProgress = localStorage.getItem(`progress_${team.id}`);
+            if (localProgress) {
+                userProgress = JSON.parse(localProgress);
+                teamRiddles = userProgress.riddleOrder;
+                currentRiddleIndex = userProgress.currentRiddleIndex;
+            } else {
+                teamRiddles = shuffleArray([...allRiddles], team.id);
+                userProgress = {
+                    riddleOrder: teamRiddles,
+                    solvedRiddles: {},
+                    partialRiddles: {},
+                    currentRiddleIndex: 0
+                };
+                saveLocalProgress();
+            }
+
+            progressMap.innerHTML = '';
+            teamRiddles.forEach((riddle, index) => {
+                const span = document.createElement('i');
+                span.classList.add('fas', 'fa-circle', 'progress-icon', 'opacity-70');
+                if (userProgress.solvedRiddles[riddle.qid]) {
+                    span.classList.remove('opacity-70');
+                    span.classList.add('fa-check-circle', 'completed');
+                    span.style.color = '#00FF00';
+                }
+                progressMap.appendChild(span);
+            });
+            
+            updateScoreDisplay();
+            loadRiddle();
+        } else {
+            console.error("Failed to fetch riddles:", riddlesData.message);
+            riddleText.textContent = "Error loading riddles. Please try again later.";
+        }
+    } catch (error) {
+        console.error("Network or fetch error:", error);
+        riddleText.textContent = "Error connecting to the magical network. Please check your connection.";
+    }
 }
 
-/**
- * Checks if a user's answer is correct for a given riddle ID.
- */
-function checkAnswer(qid, userAnswer) {
-  const qSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("questions");
-  if (!qSheet) {
-    return { isCorrect: false, message: "Questions sheet not found." };
-  }
-  const data = qSheet.getDataRange().getValues();
+// ------------------------- GET RIDDLE BUTTON LOGIC -------------------------
+getRiddleBtn.addEventListener('click', initGame);
 
-  for (let i = 1; i < data.length; i++) {
-    const [sheetQid, , sheetAnswer] = data[i];
-    if (sheetQid.toString().trim() === qid.toString().trim()) {
-      const isCorrect = userAnswer.toUpperCase().trim() === sheetAnswer.toString().toUpperCase().trim();
-      return { isCorrect: isCorrect };
-    }
-  }
+// ------------------------- MUTE TOGGLE -------------------------
+muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    muteBtn.innerHTML = muted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>';
+});
 
-  return { isCorrect: false, message: "Riddle not found." };
+// ------------------------- TIMER -------------------------
+function startTimer() {
+    timer = 0;
+    timerText.textContent = "Time: 0s";
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        timer++;
+        timerText.textContent = `Time: ${timer}s`;
+    }, 1000);
 }
 
-/**
- * Saves or updates a user's final total score to the "scores" sheet for the leaderboard.
- * NOTE: The sheet must be named "scores" and have columns "Roll No" and "Score".
- */
-function saveFinalScore(rollNumber, score) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let scoresSheet = ss.getSheetByName("scores");
-  if (!scoresSheet) {
-    scoresSheet = ss.insertSheet("scores");
-    scoresSheet.appendRow(["Roll No", "Score"]);
-  }
+// ------------------------- LOAD RIDDLE -------------------------
+function loadRiddle() {
+    saveLocalProgress();
 
-  const data = scoresSheet.getDataRange().getValues();
-  
-  const header = data[0];
-  const rollColIndex = header.indexOf("Roll No");
-  const scoreColIndex = header.indexOf("Score");
+    if (currentRiddleIndex >= teamRiddles.length) {
+        showFinalLeaderboard();
+        return;
+    }
+    const currentRiddle = teamRiddles[currentRiddleIndex];
 
-  if (rollColIndex === -1 || scoreColIndex === -1) {
-    Logger.log("Required columns 'Roll No' or 'Score' not found in the 'scores' sheet.");
-    return;
-  }
+    if (userProgress.solvedRiddles[currentRiddle.qid]) {
+        currentRiddleIndex++;
+        loadRiddle();
+        return;
+    }
+    
+    if (userProgress.partialRiddles && userProgress.partialRiddles[currentRiddle.qid]) {
+        attemptsUsed = userProgress.partialRiddles[currentRiddle.qid].attemptsUsed;
+        attemptsLeft = maxAttempts - attemptsUsed;
+    } else {
+        attemptsUsed = 0;
+        attemptsLeft = maxAttempts;
+    }
 
-  let userRow = -1;
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][rollColIndex] && data[i][rollColIndex].toString().trim() === rollNumber.toString().trim()) {
-      userRow = i + 1;
-      break;
-    }
-  }
-
-  if (userRow !== -1) {
-    scoresSheet.getRange(userRow, scoreColIndex + 1).setValue(score);
-  } else {
-    scoresSheet.appendRow([rollNumber, score]);
-  }
+    attemptsText.textContent = `Attempts left: ${attemptsLeft}`;
+    answerInput.value = '';
+    riddleText.textContent = currentRiddle.question;
+    backText.textContent = '';
+    cardInner.style.transform = 'rotateY(0deg)';
+    submitBtn.disabled = false;
+    startTimer();
 }
 
-/**
- * Retrieves the current leaderboard from the "scores" sheet.
- */
-function getLeaderboard() {
-  const scoresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("scores");
-  if (!scoresSheet) {
-    return [];
-  }
-
-  const data = scoresSheet.getDataRange().getValues();
-  if (data.length <= 1) {
-    return [];
-  }
-
-  const header = data[0];
-  const rollColIndex = header.indexOf("Roll No");
-  const scoreColIndex = header.indexOf("Score");
-
-  if (rollColIndex === -1 || scoreColIndex === -1) {
-    Logger.log("Required columns 'Roll No' or 'Score' not found in the 'scores' sheet.");
-    return [];
-  }
-
-  let leaderboard = [];
-  for (let i = 1; i < data.length; i++) {
-    let rollNo = data[i][rollColIndex];
-    let totalScore = data[i][scoreColIndex];
-    
-    if (typeof totalScore === 'number' && !isNaN(totalScore)) {
-      leaderboard.push({
-        name: rollNo,
-        score: totalScore
-      });
-    }
-  }
-
-  return leaderboard;
+// ------------------------- SCORE LOGIC -------------------------
+function calculatePoints(attempt) {
+    if (attempt === 1) return 10;
+    if (attempt === 2) return 8;
+    if (attempt === 3) return 6;
+    if (attempt === 4) return 4;
+    if (attempt === 5) return 2;
+    return 0;
 }
 
-/**
- * Helper function to send a JSON response.
- */
-function sendJSON(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+// ------------------------- UPDATE PROGRESS -------------------------
+function updateProgress(correct) {
+    const progressIcons = progressMap.querySelectorAll('.progress-icon');
+    if (progressIcons[currentRiddleIndex]) {
+        progressIcons[currentRiddleIndex].classList.remove('fa-circle', 'opacity-70');
+        progressIcons[currentRiddleIndex].classList.add(correct ? 'fa-check-circle' : 'fa-times-circle', 'completed');
+        progressIcons[currentRiddleIndex].style.color = correct ? '#00FF00' : '#FF0000';
+    }
 }
+
+// ------------------------- SUBMIT ANSWER -------------------------
+submitBtn.addEventListener('click', async () => {
+    const userAnswer = answerInput.value.trim().toUpperCase();
+    if (!userAnswer) return;
+
+    submitBtn.disabled = true;
+
+    attemptsUsed++;
+    let correct = false;
+
+    const currentRiddle = teamRiddles[currentRiddleIndex];
+    try {
+        const res = await fetch(`${backendUrl}?path=checkAnswer&qid=${currentRiddle.qid}&answer=${userAnswer}`);
+        const data = await res.json();
+        
+        if (data.isCorrect) {
+            correct = true;
+            clearInterval(timerInterval);
+            const points = calculatePoints(attemptsUsed);
+            
+            // Move from partial riddles to solved riddles
+            if (userProgress.partialRiddles) {
+                delete userProgress.partialRiddles[currentRiddle.qid];
+            }
+            userProgress.solvedRiddles[currentRiddle.qid] = { attempts: attemptsUsed, score: points };
+            userProgress.currentRiddleIndex = currentRiddleIndex + 1;
+            saveLocalProgress();
+
+            // Call the new function to update the score on the server
+            const newScore = team.score + points;
+            await updateScoreOnBackend(newScore);
+
+            updateScoreDisplay();
+            const randomPraise = praises[Math.floor(Math.random() * praises.length)];
+            backText.textContent = `${randomPraise} +${points} points`;
+            if (!muted) correctSound.play();
+            cardInner.style.transform = 'rotateY(180deg)';
+            setTimeout(() => {
+                updateProgress(correct);
+                cardInner.style.transform = 'rotateY(0deg)';
+                currentRiddleIndex++;
+                loadRiddle();
+            }, 2000);
+        } else {
+            if (!muted) wrongSound.play();
+            attemptsLeft--;
+            attemptsText.textContent = `Attempts left: ${attemptsLeft}`;
+            if (attemptsLeft > 0) {
+                // Save partial progress for this riddle
+                if (!userProgress.partialRiddles) userProgress.partialRiddles = {};
+                userProgress.partialRiddles[currentRiddle.qid] = { attemptsUsed: attemptsUsed };
+                saveLocalProgress();
+
+                backText.textContent = `Incorrect! Try again.`;
+                cardInner.style.transform = 'rotateY(180deg)';
+                setTimeout(() => {
+                    cardInner.style.transform = 'rotateY(0deg)';
+                    backText.textContent = '';
+                    submitBtn.disabled = false;
+                }, 1500);
+            } else {
+                clearInterval(timerInterval);
+                backText.textContent = `Out of attempts!`;
+                cardInner.style.transform = 'rotateY(180deg)';
+                updateProgress(correct);
+                
+                // Clear partial progress and advance
+                if (userProgress.partialRiddles) {
+                    delete userProgress.partialRiddles[currentRiddle.qid];
+                }
+                userProgress.currentRiddleIndex = currentRiddleIndex + 1;
+                saveLocalProgress();
+
+                setTimeout(() => {
+                    cardInner.style.transform = 'rotateY(0deg)';
+                    currentRiddleIndex++;
+                    loadRiddle();
+                }, 2500);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking answer:', error);
+        backText.textContent = "Error checking answer. Please try again.";
+        submitBtn.disabled = false;
+    }
+});
+
+// ⭐ NEW FUNCTION TO UPDATE SCORE ON BACKEND
+async function updateScoreOnBackend(score) {
+    try {
+        await fetch(`${backendUrl}?path=saveFinalScore`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ rollNumber: team.id, score }),
+        });
+        console.log("Score successfully sent to backend.");
+    } catch (error) {
+        console.error("Failed to send score to backend:", error);
+    }
+}
+
+
+// ------------------------- SAVE LOCAL PROGRESS -------------------------
+function saveLocalProgress() {
+    localStorage.setItem(`progress_${team.id}`, JSON.stringify(userProgress));
+}
+
+// ------------------------- UPDATE SCORE DISPLAY (LOCAL) -------------------------
+function updateScoreDisplay() {
+    let totalScore = 0;
+    for (const qid in userProgress.solvedRiddles) {
+        totalScore += userProgress.solvedRiddles[qid].score;
+    }
+    team.score = totalScore;
+    scoreDisplay.textContent = `Points: ${team.score}`;
+}
+
+// ------------------------- LEADERBOARD (Fetch from backend) -------------------------
+async function updateLeaderboard() {
+    try {
+        const res = await fetch(`${backendUrl}?path=leaderboard`);
+        const data = await res.json();
+        
+        if (!Array.isArray(data)) {
+            console.error("Leaderboard data is not an array:", data);
+            return;
+        }
+
+        data.sort((a, b) => b.score - a.score);
+        leaderboardList.innerHTML = data.map((t, index) => `
+            <li class="leaderboard-item flex justify-between p-2 rounded bg-gray-900 border border-gray-700">
+                <span><i class="fas fa-trophy mr-1 ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : 'text-orange-600'}"></i>${t.name}</span>
+                <span>${t.score} pts</span>
+            </li>
+        `).join('');
+    } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        leaderboardList.innerHTML = `
+            <li class="leaderboard-item flex justify-between p-2 rounded bg-gray-900 border border-gray-700">
+                <span><i class="fas fa-trophy mr-1 text-yellow-400"></i>${team.name}</span>
+                <span>${team.score} pts</span>
+            </li>
+        `;
+    }
+}
+
+// Poll leaderboard every 5s for real-time
+setInterval(updateLeaderboard, 5000);
+
+// ------------------------- FINAL LEADERBOARD -------------------------
+function showFinalLeaderboard() {
+    clearInterval(timerInterval);
+    riddleText.textContent = "🏆 Quest Completed! 🏆";
+    answerInput.style.display = 'none';
+    submitBtn.style.display = 'none';
+    attemptsText.style.display = 'none';
+    timerText.style.display = 'none';
+    backText.textContent = `Final Points: ${team.score}`;
+    cardInner.style.transform = 'rotateY(180deg)';
+    
+    updateScoreOnBackend(team.score); // This function is already called after each riddle, but we can keep it here as a final safety check.
+
+    teamStats.classList.remove('hidden');
+    statsList.innerHTML = Object.keys(userProgress.solvedRiddles).map(qid => {
+        const riddle = userProgress.solvedRiddles[qid];
+        return `<li class="p-1 bg-gray-900 rounded border border-gray-700">Riddle ${qid}: ${riddle.score} pts | ${riddle.attempts} attempts</li>`;
+    }).join('');
+
+    setTimeout(() => {
+        window.location.href = 'thankyou.html';
+    }, 10000);
+}
+
+// ------------------------- SMOOTH PARALLAX EFFECT -------------------------
+function lerp(start, end, factor) {
+    return start + (end - start) * factor;
+}
+
+document.addEventListener('mousemove', (e) => {
+    const { clientX, clientY } = e;
+    const { innerWidth: w, innerHeight: h } = window;
+    targetX = (clientX / w * 2 - 1) * 5;
+    targetY = (clientY / h * 2 - 1) * 5;
+});
+
+document.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    const { innerWidth: w, innerHeight: h } = window;
+    targetX = (touch.clientX / w * 2 - 1) * 5;
+    targetY = (touch.clientY / h * 2 - 1) * 5;
+});
+
+function updateParallax() {
+    mouseX = lerp(mouseX, targetX, 0.1);
+    mouseY = lerp(mouseY, targetY, 0.1);
+
+    parallaxElements.forEach(el => {
+        el.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
+    });
+
+    parallaxBg.style.transform = `translate(${mouseX/2}px, ${mouseY/2}px) scale(1.2)`;
+    requestAnimationFrame(updateParallax);
+}
+
+// Start parallax animation
+requestAnimationFrame(updateParallax);
+
+// ------------------------- INIT -------------------------
+window.onload = initGame;
+</script>
+</body>
+</html>
