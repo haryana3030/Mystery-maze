@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Harry Potter Riddle Quests</title>
+    <title>Harry Potter Riddle Quest</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Harry+P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -251,7 +251,7 @@
     <div id="parallax-bg"></div>
 
     <header class="header flex justify-between items-center w-full z-10">
-        <h1 class="text-2xl font-['Harry_P'] text-yellow-400 sm:text-3xl md:text-4xl">⚡ Riddle Quests ⚡</h1>
+        <h1 class="text-2xl font-['Harry_P'] text-yellow-400 sm:text-3xl md:text-4xl">⚡ Riddle Quest ⚡</h1>
         <div class="flex items-center space-x-2 sm:space-x-4">
             <span id="score-display" class="text-base sm:text-xl">Points: 0</span>
             <button id="mute-btn" class="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700"><i class="fas fa-volume-up"></i></button>
@@ -296,29 +296,21 @@
 <script>
 // ------------------------- MOCK DATA (REMOVED) -------------------------
 let team = {
-    id: null, // This will be the roll number from localStorage
+    id: null,
     name: "Gryffindor",
     score: 0
 };
 
 let teamResults = [];
+let userProgress = {};
 
 const praises = [
-    "Bravo!",
-    "Excellent!",
-    "Lightning fast!",
-    "Well done!",
-    "Impressive!",
-    "Superb!",
-    "Outstanding!",
-    "Magnificent!",
-    "Brilliant!",
-    "Fantastic!"
+    "Bravo!", "Excellent!", "Lightning fast!", "Well done!", "Impressive!", "Superb!", "Outstanding!", "Magnificent!", "Brilliant!", "Fantastic!"
 ];
 
 // ------------------------- GOOGLE APPS SCRIPT URL -------------------------
 // !!! IMPORTANT: Replace this with your actual deployed Apps Script URL !!!
-const backendUrl = "https://script.google.com/macros/s/AKfycbyMbKJH68z3mPRJAkgXfN1M8pIRwFjC2UsDUTLodT_aNpebbCmbsXfR25aZ0fa9MthQWA/exec";
+const backendUrl = "https://script.google.com/macros/s/AKfycbxhE9pkm9FWGgWhDMEoifEcLdoB181i4uw2ZZN4Lzb7y4nYBBXEKh_WGkmNbyChOuQSZA/exec";
 
 let allRiddles = [];
 let teamRiddles = [];
@@ -411,25 +403,38 @@ async function initGame() {
     progressMap.classList.remove('hidden');
 
     try {
-        const response = await fetch(`${backendUrl}?path=getQuestions`);
-        const data = await response.json();
+        const [riddlesRes, progressRes] = await Promise.all([
+            fetch(`${backendUrl}?path=getQuestions`),
+            fetch(`${backendUrl}?path=getInitialProgress&rollNumber=${team.id}`)
+        ]);
+
+        const riddlesData = await riddlesRes.json();
+        const progressData = await progressRes.json();
         
-        if (data.success && data.questions && data.questions.length > 0) {
-            allRiddles = data.questions;
+        if (riddlesData.success && riddlesData.questions && riddlesData.questions.length > 0) {
+            allRiddles = riddlesData.questions;
             teamRiddles = shuffleArray([...allRiddles], team.id);
+
+            if (progressData.success) {
+                userProgress = progressData.progress;
+            }
             
             progressMap.innerHTML = '';
-            teamRiddles.forEach(() => {
+            teamRiddles.forEach(riddle => {
                 const span = document.createElement('i');
                 span.classList.add('fas', 'fa-circle', 'progress-icon', 'opacity-70');
+                if (userProgress[riddle.qid] && userProgress[riddle.qid].attempts_left < maxAttempts) {
+                    span.classList.remove('opacity-70');
+                    span.classList.add('fa-check-circle', 'completed');
+                    span.style.color = '#00FF00';
+                }
                 progressMap.appendChild(span);
             });
             
             await updateScoreDisplay();
-
             loadRiddle();
         } else {
-            console.error("Failed to fetch riddles:", data.message);
+            console.error("Failed to fetch riddles:", riddlesData.message);
             riddleText.textContent = "Error loading riddles. Please try again later.";
         }
     } catch (error) {
@@ -464,11 +469,19 @@ function loadRiddle() {
         showFinalLeaderboard();
         return;
     }
-    attemptsUsed = 0;
+    const currentRiddle = teamRiddles[currentRiddleIndex];
+
+    if (userProgress[currentRiddle.qid] && userProgress[currentRiddle.qid].attempts_left < maxAttempts) {
+        currentRiddleIndex++;
+        loadRiddle();
+        return;
+    }
+
     attemptsLeft = maxAttempts;
+    attemptsUsed = 0;
     attemptsText.textContent = `Attempts left: ${attemptsLeft}`;
     answerInput.value = '';
-    riddleText.textContent = teamRiddles[currentRiddleIndex].question;
+    riddleText.textContent = currentRiddle.question;
     backText.textContent = '';
     cardInner.style.transform = 'rotateY(0deg)';
     submitBtn.disabled = false;
@@ -515,14 +528,15 @@ submitBtn.addEventListener('click', async () => {
             clearInterval(timerInterval);
             const points = calculatePoints(attemptsUsed);
             
-            await saveRiddleResult(correct, points);
+            userProgress[currentRiddle.qid] = { attempts_left: attemptsLeft, score: points };
+            
+            await saveProgress(currentRiddle.qid, attemptsUsed, points);
             await updateScoreDisplay();
 
             const randomPraise = praises[Math.floor(Math.random() * praises.length)];
             backText.textContent = `${randomPraise} +${points} points`;
             if (!muted) correctSound.play();
             cardInner.style.transform = 'rotateY(180deg)';
-            updateLeaderboard();
             setTimeout(() => {
                 updateProgress(correct);
                 cardInner.style.transform = 'rotateY(0deg)';
@@ -545,7 +559,7 @@ submitBtn.addEventListener('click', async () => {
                 clearInterval(timerInterval);
                 backText.textContent = `Out of attempts!`;
                 cardInner.style.transform = 'rotateY(180deg)';
-                await saveRiddleResult(correct, 0);
+                await saveProgress(currentRiddle.qid, attemptsUsed, 0);
                 await updateScoreDisplay();
                 setTimeout(() => {
                     updateProgress(correct);
@@ -562,34 +576,30 @@ submitBtn.addEventListener('click', async () => {
     }
 });
 
-// ------------------------- SAVE RESULT -------------------------
-async function saveRiddleResult(correct, points) {
-    const result = {
-        team_id: team.id,
-        team_name: team.name,
-        riddle_id: teamRiddles[currentRiddleIndex].qid,
-        attempts_used: attemptsUsed,
-        time_taken_seconds: timer,
-        points_awarded: points,
-        correct: correct,
-        timestamp: new Date().toISOString(),
-        rollNumber: team.id
+// ------------------------- SAVE PROGRESS TO BACKEND -------------------------
+async function saveProgress(riddleId, attempts, points) {
+    const dataToSend = {
+        rollNumber: team.id,
+        riddleNumber: riddleId.replace('Q', ''),
+        attempts_used: attempts,
+        points_awarded: points
     };
-    teamResults.push(result);
-    console.log("Sending to backend:", result);
+    
+    console.log("Sending to backend:", dataToSend);
+    
     try {
-        await fetch(`${backendUrl}?path=saveResult`, {
+        await fetch(`${backendUrl}?path=saveProgress`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(result)
+            body: JSON.stringify(dataToSend)
         });
-        updateLeaderboard();
     } catch (error) {
-        console.error('Error saving result:', error);
+        console.error('Error saving progress:', error);
     }
 }
 
 // ------------------------- LEADERBOARD -------------------------
+// Note: This leaderboard now fetches from the "progress" sheet totals
 async function updateLeaderboard() {
     try {
         const res = await fetch(`${backendUrl}?path=leaderboard`);
@@ -691,7 +701,6 @@ function updateParallax() {
 requestAnimationFrame(updateParallax);
 
 // ------------------------- INIT -------------------------
-// Call initGame when the page loads to check for the user's roll number
 window.onload = initGame;
 </script>
 </body>
