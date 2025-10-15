@@ -294,51 +294,25 @@
     <audio id="wrong-sound" src="https://www.soundjay.com/buttons/button-10.mp3"></audio>
 
 <script>
-// ------------------------- GOOGLE APPS SCRIPT URL -------------------------
-// !!! IMPORTANT: Replace this with your actual deployed Apps Script URL !!!
-const backendUrl = "YOUR_DEPLOYED_APPS_SCRIPT_URL_HERE";
-
+// ------------------------- MOCK DATA (REMOVED) -------------------------
 let team = {
-    id: null,
+    id: null, // This will be the roll number from localStorage
     name: "Gryffindor",
     score: 0
 };
+
 let userProgress = {};
-const praises = ["Bravo!", "Excellent!", "Lightning fast!", "Well done!", "Impressive!", "Superb!", "Outstanding!", "Magnificent!", "Brilliant!", "Fantastic!"];
+
+const praises = [
+    "Bravo!", "Excellent!", "Lightning fast!", "Well done!", "Impressive!", "Superb!", "Outstanding!", "Magnificent!", "Brilliant!", "Fantastic!"
+];
+
+// ------------------------- GOOGLE APPS SCRIPT URL -------------------------
+// !!! IMPORTANT: Replace this with your actual deployed Apps Script URL !!!
+const backendUrl = "https://script.google.com/macros/s/AKfycbyhvr5eXutVAop2O2fqX8ElQT9TOsScrnGtXup_nB9lQtAdh8BSrpl3oztZjLkX1uHJ3w/exec";
+
 let allRiddles = [];
 let teamRiddles = [];
-let currentRiddleIndex = 0;
-let attemptsUsed = 0;
-let maxAttempts = 5;
-let attemptsLeft = maxAttempts;
-let timer = 0;
-let timerInterval = null;
-let muted = false;
-let mouseX = 0, mouseY = 0;
-let targetX = 0, targetY = 0;
-
-// ------------------------- ELEMENTS -------------------------
-const riddleText = document.getElementById('riddle-text');
-const answerInput = document.getElementById('answer-input');
-const submitBtn = document.getElementById('submit-answer');
-const attemptsText = document.getElementById('attempts-text');
-const timerText = document.getElementById('timer-text');
-const backText = document.getElementById('back-text');
-const leaderboardList = document.getElementById('leaderboard-list');
-const progressMap = document.getElementById('progress-map');
-const cardInner = document.querySelector('.card-inner');
-const muteBtn = document.getElementById('mute-btn');
-const teamStats = document.getElementById('team-stats');
-const statsList = document.getElementById('stats-list');
-const correctSound = document.getElementById('correct-sound');
-const wrongSound = document.getElementById('wrong-sound');
-const scoreDisplay = document.getElementById('score-display');
-const parallaxElements = document.querySelectorAll('.parallax');
-const parallaxBg = document.getElementById('parallax-bg');
-const getRiddleBtn = document.getElementById('get-riddle-btn');
-const riddleCard = document.querySelector('.riddle-card');
-const sidebar = document.getElementById('sidebar');
-const sidebarToggle = document.getElementById('sidebar-toggle');
 
 // ------------------------- UNIQUE USER IDENTIFIER & SEEDED SHUFFLE -------------------------
 function getUserId() {
@@ -372,6 +346,40 @@ function shuffleArray(array, seed) {
     }
     return array;
 }
+
+// ------------------------- GAME STATE -------------------------
+let currentRiddleIndex = 0;
+let attemptsUsed = 0;
+let maxAttempts = 5;
+let attemptsLeft = maxAttempts;
+let timer = 0;
+let timerInterval = null;
+let muted = false;
+let mouseX = 0, mouseY = 0;
+let targetX = 0, targetY = 0;
+
+// ------------------------- ELEMENTS -------------------------
+const riddleText = document.getElementById('riddle-text');
+const answerInput = document.getElementById('answer-input');
+const submitBtn = document.getElementById('submit-answer');
+const attemptsText = document.getElementById('attempts-text');
+const timerText = document.getElementById('timer-text');
+const backText = document.getElementById('back-text');
+const leaderboardList = document.getElementById('leaderboard-list');
+const progressMap = document.getElementById('progress-map');
+const cardInner = document.querySelector('.card-inner');
+const muteBtn = document.getElementById('mute-btn');
+const teamStats = document.getElementById('team-stats');
+const statsList = document.getElementById('stats-list');
+const correctSound = document.getElementById('correct-sound');
+const wrongSound = document.getElementById('wrong-sound');
+const scoreDisplay = document.getElementById('score-display');
+const parallaxElements = document.querySelectorAll('.parallax');
+const parallaxBg = document.getElementById('parallax-bg');
+const getRiddleBtn = document.getElementById('get-riddle-btn');
+const riddleCard = document.querySelector('.riddle-card');
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
 
 // ------------------------- SIDEBAR TOGGLE -------------------------
 sidebarToggle.addEventListener('click', () => {
@@ -410,7 +418,6 @@ async function initGame() {
                 userProgress = {
                     riddleOrder: teamRiddles,
                     solvedRiddles: {},
-                    partialRiddles: {},
                     currentRiddleIndex: 0
                 };
                 saveLocalProgress();
@@ -476,6 +483,7 @@ function loadRiddle() {
         return;
     }
     
+    // Corrected logic: Check if the riddle has been partially attempted
     if (userProgress.partialRiddles && userProgress.partialRiddles[currentRiddle.qid]) {
         attemptsUsed = userProgress.partialRiddles[currentRiddle.qid].attemptsUsed;
         attemptsLeft = maxAttempts - attemptsUsed;
@@ -541,10 +549,6 @@ submitBtn.addEventListener('click', async () => {
             userProgress.currentRiddleIndex = currentRiddleIndex + 1;
             saveLocalProgress();
 
-            // Call the new function to update the score on the server
-            const newScore = team.score + points;
-            await updateScoreOnBackend(newScore);
-
             updateScoreDisplay();
             const randomPraise = praises[Math.floor(Math.random() * praises.length)];
             backText.textContent = `${randomPraise} +${points} points`;
@@ -599,23 +603,6 @@ submitBtn.addEventListener('click', async () => {
         submitBtn.disabled = false;
     }
 });
-
-// ⭐ NEW FUNCTION TO UPDATE SCORE ON BACKEND
-async function updateScoreOnBackend(score) {
-    try {
-        await fetch(`${backendUrl}?path=saveFinalScore`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ rollNumber: team.id, score }),
-        });
-        console.log("Score successfully sent to backend.");
-    } catch (error) {
-        console.error("Failed to send score to backend:", error);
-    }
-}
-
 
 // ------------------------- SAVE LOCAL PROGRESS -------------------------
 function saveLocalProgress() {
@@ -675,7 +662,7 @@ function showFinalLeaderboard() {
     backText.textContent = `Final Points: ${team.score}`;
     cardInner.style.transform = 'rotateY(180deg)';
     
-    updateScoreOnBackend(team.score); // This function is already called after each riddle, but we can keep it here as a final safety check.
+    saveFinalScore(team.id, team.score);
 
     teamStats.classList.remove('hidden');
     statsList.innerHTML = Object.keys(userProgress.solvedRiddles).map(qid => {
