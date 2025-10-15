@@ -295,11 +295,9 @@
 
 <script>
 // ------------------------- MOCK DATA (REMOVED) -------------------------
-// Remove the const riddles = [...] array
-
 let team = {
     id: null, // This will be the roll number from localStorage
-    name: "Gryffindor", // This can be set after login
+    name: "Gryffindor",
     score: 0
 };
 
@@ -320,13 +318,12 @@ const praises = [
 
 // ------------------------- GOOGLE APPS SCRIPT URL -------------------------
 // !!! IMPORTANT: Replace this with your actual deployed Apps Script URL !!!
-const backendUrl = "https://script.google.com/macros/s/AKfycbzacKdiIrZlLuLGfb7wcqqYewWq1EOfivdh5HJgWj0UJ4KSZElTpOqNYdOyZwhJbp8I7g/exec";
+const backendUrl = "https://script.google.com/macros/s/AKfycbzFuMvcE3ej8A1Tgn-br7OvWWp6sK0Tt-ImHd9EfGkefNOFX6lLO-bWDn3yw0nXeZ0fSw/exec";
 
 let allRiddles = [];
 let teamRiddles = [];
 
 // ------------------------- UNIQUE USER IDENTIFIER & SEEDED SHUFFLE -------------------------
-// This function is now simplified, as the roll number is the ID
 function getUserId() {
     return localStorage.getItem('roll');
 }
@@ -517,13 +514,14 @@ submitBtn.addEventListener('click', async () => {
             correct = true;
             clearInterval(timerInterval);
             const points = calculatePoints(attemptsUsed);
-            team.score += points;
-            scoreDisplay.textContent = `Points: ${team.score}`;
+            
+            await saveRiddleResult(correct, points);
+            await updateScoreDisplay();
+
             const randomPraise = praises[Math.floor(Math.random() * praises.length)];
             backText.textContent = `${randomPraise} +${points} points`;
             if (!muted) correctSound.play();
             cardInner.style.transform = 'rotateY(180deg)';
-            await saveRiddleResult(correct, points);
             updateLeaderboard();
             setTimeout(() => {
                 updateProgress(correct);
@@ -548,6 +546,7 @@ submitBtn.addEventListener('click', async () => {
                 backText.textContent = `Out of attempts!`;
                 cardInner.style.transform = 'rotateY(180deg)';
                 await saveRiddleResult(correct, 0);
+                await updateScoreDisplay();
                 setTimeout(() => {
                     updateProgress(correct);
                     cardInner.style.transform = 'rotateY(0deg)';
