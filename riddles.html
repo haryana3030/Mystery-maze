@@ -251,7 +251,7 @@
     <div id="parallax-bg"></div>
 
     <header class="header flex justify-between items-center w-full z-10">
-        <h1 class="text-2xl font-['Harry_P'] text-yellow-400 sm:text-3xl md:text-4xl">⚡ Riddle Quest ⚡</h1>
+        <h1 class="text-2xl font-['Harry_P'] text-yellow-400 sm:text-3xl md:text-4xl">⚡ Riddle Questjj ⚡</h1>
         <div class="flex items-center space-x-2 sm:space-x-4">
             <span id="score-display" class="text-base sm:text-xl">Points: 0</span>
             <button id="mute-btn" class="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700"><i class="fas fa-volume-up"></i></button>
@@ -408,23 +408,22 @@ async function initGame() {
         if (riddlesData.success && riddlesData.questions && riddlesData.questions.length > 0) {
             allRiddles = riddlesData.questions;
             
-            // Try to load progress from localStorage
             const localProgress = localStorage.getItem(`progress_${team.id}`);
             if (localProgress) {
                 userProgress = JSON.parse(localProgress);
                 teamRiddles = userProgress.riddleOrder;
                 currentRiddleIndex = userProgress.currentRiddleIndex;
             } else {
-                // If no local progress, create a new one
                 teamRiddles = shuffleArray([...allRiddles], team.id);
                 userProgress = {
                     riddleOrder: teamRiddles,
                     solvedRiddles: {},
                     currentRiddleIndex: 0
                 };
+                // Save the newly created progress to local storage
+                saveLocalProgress();
             }
 
-            // Create progress map and update based on initial data
             progressMap.innerHTML = '';
             teamRiddles.forEach((riddle, index) => {
                 const span = document.createElement('i');
@@ -536,7 +535,7 @@ submitBtn.addEventListener('click', async () => {
             clearInterval(timerInterval);
             const points = calculatePoints(attemptsUsed);
             
-            // Update local progress
+            // Update local progress with points and attempts
             userProgress.solvedRiddles[currentRiddle.qid] = { attempts: attemptsUsed, score: points };
             userProgress.currentRiddleIndex = currentRiddleIndex + 1;
             saveLocalProgress();
@@ -602,17 +601,9 @@ function updateScoreDisplay() {
 }
 
 // ------------------------- LEADERBOARD (Fetch from backend) -------------------------
+// This part remains connected to your Apps Script to get the global ranking.
 async function updateLeaderboard() {
     try {
-        // Send a POST request to update the score on the leaderboard sheet
-        const dataToSend = { rollNumber: team.id, score: team.score };
-        await fetch(`${backendUrl}?path=saveFinalScore`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dataToSend)
-        });
-
-        // Now, fetch the updated leaderboard
         const res = await fetch(`${backendUrl}?path=leaderboard`);
         const data = await res.json();
         
@@ -639,7 +630,6 @@ async function updateLeaderboard() {
     }
 }
 
-
 // Poll leaderboard every 5s for real-time
 setInterval(updateLeaderboard, 5000);
 
@@ -653,7 +643,9 @@ function showFinalLeaderboard() {
     timerText.style.display = 'none';
     backText.textContent = `Final Points: ${team.score}`;
     cardInner.style.transform = 'rotateY(180deg)';
-    updateLeaderboard();
+    
+    // Send final score to backend for leaderboard
+    saveFinalScore(team.id, team.score);
 
     teamStats.classList.remove('hidden');
     statsList.innerHTML = Object.keys(userProgress.solvedRiddles).map(qid => {
