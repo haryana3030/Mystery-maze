@@ -298,7 +298,7 @@
 // Remove the const riddles = [...] array
 
 let team = {
-    id: "TEAM01",
+    id: "TEAM01", // This can be a placeholder as we'll generate a unique user ID
     name: "Gryffindor",
     score: 0
 };
@@ -325,7 +325,21 @@ const backendUrl = "https://script.google.com/macros/s/AKfycbzFuMvcE3ej8A1Tgn-br
 let allRiddles = [];
 let teamRiddles = [];
 
-// ------------------------- SEEDED SHUFFLE -------------------------
+// ------------------------- UNIQUE USER IDENTIFIER & SEEDED SHUFFLE -------------------------
+// Generate a unique user ID if one doesn't exist
+function getOrCreateUserId() {
+    let userId = localStorage.getItem('riddleQuestUserId');
+    if (!userId) {
+        // Generate a random ID (e.g., using a timestamp and a random number)
+        userId = 'user_' + new Date().getTime() + Math.random().toString(36).substring(2, 10);
+        localStorage.setItem('riddleQuestUserId', userId);
+    }
+    return userId;
+}
+
+const userId = getOrCreateUserId();
+team.id = userId; // Assign the unique ID to the team object
+
 function hashString(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -406,7 +420,8 @@ async function initGame() {
         
         if (data.success && data.questions && data.questions.length > 0) {
             allRiddles = data.questions;
-            teamRiddles = shuffleArray([...allRiddles], team.id); // Seeded shuffle based on team ID
+            // Shuffle using the unique user ID
+            teamRiddles = shuffleArray([...allRiddles], userId); 
             
             // Re-initialize progress map
             progressMap.innerHTML = '';
