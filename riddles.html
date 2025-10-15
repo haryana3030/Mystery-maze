@@ -299,9 +299,9 @@
 const backendUrl = "https://script.google.com/macros/s/AKfycbxIxYgXx35xFLJ6AxCo_ZOJspwhNkmBri0ctQO5x5ZJOhoj_bkOgZl6KLO2vAWVq6WTiA/exec";
 
 let team = {
-    id: null,
-    name: "Gryffindor",
-    score: 0
+    id: null,
+    name: "Gryffindor",
+    score: 0
 };
 let userProgress = {};
 const praises = ["Bravo!", "Excellent!", "Lightning fast!", "Well done!", "Impressive!", "Superb!", "Outstanding!", "Magnificent!", "Brilliant!", "Fantastic!"];
@@ -342,102 +342,102 @@ const sidebarToggle = document.getElementById('sidebar-toggle');
 
 // ------------------------- UNIQUE USER IDENTIFIER & SEEDED SHUFFLE -------------------------
 function getUserId() {
-    return localStorage.getItem('roll');
+    return localStorage.getItem('roll');
 }
 
 function hashString(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = (hash << 5) - hash + char;
-        hash |= 0;
-    }
-    return hash;
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0;
+    }
+    return hash;
 }
 
 function mulberry32(seed) {
-    return function() {
-        let t = seed += 0x6D2B79F5;
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
+    return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
 }
 
 function shuffleArray(array, seed) {
-    const rand = mulberry32(hashString(seed));
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(rand() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
+    const rand = mulberry32(hashString(seed));
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
 }
 
 // ------------------------- SIDEBAR TOGGLE -------------------------
 sidebarToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('open');
-    sidebarToggle.innerHTML = sidebar.classList.contains('open') ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+    sidebar.classList.toggle('open');
+    sidebarToggle.innerHTML = sidebar.classList.contains('open') ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
 });
 
 // ------------------------- INIT GAME FUNCTION -------------------------
 async function initGame() {
-    const rollNumber = getUserId();
-    if (!rollNumber) {
-        alert("Please log in to start the quest.");
-        window.location.href = 'login.html';
-        return;
-    }
-    team.id = rollNumber;
+    const rollNumber = getUserId();
+    if (!rollNumber) {
+        alert("Please log in to start the quest.");
+        window.location.href = 'login.html';
+        return;
+    }
+    team.id = rollNumber;
 
-    getRiddleBtn.classList.add('hidden');
-    riddleCard.classList.remove('hidden');
-    progressMap.classList.remove('hidden');
+    getRiddleBtn.classList.add('hidden');
+    riddleCard.classList.remove('hidden');
+    progressMap.classList.remove('hidden');
 
-    try {
-        const riddlesRes = await fetch(`${backendUrl}?path=getQuestions`);
-        const riddlesData = await riddlesRes.json();
-        
-        if (riddlesData.success && riddlesData.questions && riddlesData.questions.length > 0) {
-            allRiddles = riddlesData.questions;
-            
-            const localProgress = localStorage.getItem(`progress_${team.id}`);
-            if (localProgress) {
-                userProgress = JSON.parse(localProgress);
-                teamRiddles = userProgress.riddleOrder;
-                currentRiddleIndex = userProgress.currentRiddleIndex;
-            } else {
-                teamRiddles = shuffleArray([...allRiddles], team.id);
-                userProgress = {
-                    riddleOrder: teamRiddles,
-                    solvedRiddles: {},
-                    partialRiddles: {},
-                    currentRiddleIndex: 0
-                };
-                saveLocalProgress();
-            }
+    try {
+        const riddlesRes = await fetch(`${backendUrl}?path=getQuestions`);
+        const riddlesData = await riddlesRes.json();
+        
+        if (riddlesData.success && riddlesData.questions && riddlesData.questions.length > 0) {
+            allRiddles = riddlesData.questions;
+            
+            const localProgress = localStorage.getItem(`progress_${team.id}`);
+            if (localProgress) {
+                userProgress = JSON.parse(localProgress);
+                teamRiddles = userProgress.riddleOrder;
+                currentRiddleIndex = userProgress.currentRiddleIndex;
+            } else {
+                teamRiddles = shuffleArray([...allRiddles], team.id);
+                userProgress = {
+                    riddleOrder: teamRiddles,
+                    solvedRiddles: {},
+                    partialRiddles: {},
+                    currentRiddleIndex: 0
+                };
+                saveLocalProgress();
+            }
 
-            progressMap.innerHTML = '';
-            teamRiddles.forEach((riddle, index) => {
-                const span = document.createElement('i');
-                span.classList.add('fas', 'fa-circle', 'progress-icon', 'opacity-70');
-                if (userProgress.solvedRiddles[riddle.qid]) {
-                    span.classList.remove('opacity-70');
-                    span.classList.add('fa-check-circle', 'completed');
-                    span.style.color = '#00FF00';
-                }
-                progressMap.appendChild(span);
-            });
-            
-            updateScoreDisplay();
-            loadRiddle();
-        } else {
-            console.error("Failed to fetch riddles:", riddlesData.message);
-            riddleText.textContent = "Error loading riddles. Please try again later.";
-        }
-    } catch (error) {
-        console.error("Network or fetch error:", error);
-        riddleText.textContent = "Error connecting to the magical network. Please check your connection.";
-    }
+            progressMap.innerHTML = '';
+            teamRiddles.forEach((riddle, index) => {
+                const span = document.createElement('i');
+                span.classList.add('fas', 'fa-circle', 'progress-icon', 'opacity-70');
+                if (userProgress.solvedRiddles[riddle.qid]) {
+                    span.classList.remove('opacity-70');
+                    span.classList.add('fa-check-circle', 'completed');
+                    span.style.color = '#00FF00';
+                }
+                progressMap.appendChild(span);
+            });
+            
+            updateScoreDisplay();
+            loadRiddle();
+        } else {
+            console.error("Failed to fetch riddles:", riddlesData.message);
+            riddleText.textContent = "Error loading riddles. Please try again later.";
+        }
+    } catch (error) {
+        console.error("Network or fetch error:", error);
+        riddleText.textContent = "Error connecting to the magical network. Please check your connection.";
+    }
 }
 
 // ------------------------- GET RIDDLE BUTTON LOGIC -------------------------
@@ -445,198 +445,215 @@ getRiddleBtn.addEventListener('click', initGame);
 
 // ------------------------- MUTE TOGGLE -------------------------
 muteBtn.addEventListener('click', () => {
-    muted = !muted;
-    muteBtn.innerHTML = muted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>';
+    muted = !muted;
+    muteBtn.innerHTML = muted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>';
 });
 
 // ------------------------- TIMER -------------------------
 function startTimer() {
-    timer = 0;
-    timerText.textContent = "Time: 0s";
-    clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-        timer++;
-        timerText.textContent = `Time: ${timer}s`;
-    }, 1000);
+    timer = 0;
+    timerText.textContent = "Time: 0s";
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        timer++;
+        timerText.textContent = `Time: ${timer}s`;
+    }, 1000);
 }
 
 // ------------------------- LOAD RIDDLE -------------------------
 function loadRiddle() {
-    saveLocalProgress();
+    saveLocalProgress();
 
-    if (currentRiddleIndex >= teamRiddles.length) {
-        showFinalLeaderboard();
-        return;
-    }
-    const currentRiddle = teamRiddles[currentRiddleIndex];
+    if (currentRiddleIndex >= teamRiddles.length) {
+        showFinalLeaderboard();
+        return;
+    }
+    const currentRiddle = teamRiddles[currentRiddleIndex];
 
-    if (userProgress.solvedRiddles[currentRiddle.qid]) {
-        currentRiddleIndex++;
-        loadRiddle();
-        return;
-    }
-    
-    if (userProgress.partialRiddles && userProgress.partialRiddles[currentRiddle.qid]) {
-        attemptsUsed = userProgress.partialRiddles[currentRiddle.qid].attemptsUsed;
-        attemptsLeft = maxAttempts - attemptsUsed;
-    } else {
-        attemptsUsed = 0;
-        attemptsLeft = maxAttempts;
-    }
+    if (userProgress.solvedRiddles[currentRiddle.qid]) {
+        currentRiddleIndex++;
+        loadRiddle();
+        return;
+    }
+    
+    if (userProgress.partialRiddles && userProgress.partialRiddles[currentRiddle.qid]) {
+        attemptsUsed = userProgress.partialRiddles[currentRiddle.qid].attemptsUsed;
+        attemptsLeft = maxAttempts - attemptsUsed;
+    } else {
+        attemptsUsed = 0;
+        attemptsLeft = maxAttempts;
+    }
 
-    attemptsText.textContent = `Attempts left: ${attemptsLeft}`;
-    answerInput.value = '';
-    riddleText.textContent = currentRiddle.question;
-    backText.textContent = '';
-    cardInner.style.transform = 'rotateY(0deg)';
-    submitBtn.disabled = false;
-    startTimer();
+    attemptsText.textContent = `Attempts left: ${attemptsLeft}`;
+    answerInput.value = '';
+    riddleText.textContent = currentRiddle.question;
+    backText.textContent = '';
+    cardInner.style.transform = 'rotateY(0deg)';
+    submitBtn.disabled = false;
+    startTimer();
 }
 
 // ------------------------- SCORE LOGIC -------------------------
 function calculatePoints(attempt) {
-    if (attempt === 1) return 10;
-    if (attempt === 2) return 8;
-    if (attempt === 3) return 6;
-    if (attempt === 4) return 4;
-    if (attempt === 5) return 2;
-    return 0;
+    if (attempt === 1) return 10;
+    if (attempt === 2) return 8;
+    if (attempt === 3) return 6;
+    if (attempt === 4) return 4;
+    if (attempt === 5) return 2;
+    return 0;
 }
 
 // ------------------------- UPDATE PROGRESS -------------------------
 function updateProgress(correct) {
-    const progressIcons = progressMap.querySelectorAll('.progress-icon');
-    if (progressIcons[currentRiddleIndex]) {
-        progressIcons[currentRiddleIndex].classList.remove('fa-circle', 'opacity-70');
-        progressIcons[currentRiddleIndex].classList.add(correct ? 'fa-check-circle' : 'fa-times-circle', 'completed');
-        progressIcons[currentRiddleIndex].style.color = correct ? '#00FF00' : '#FF0000';
-    }
+    const progressIcons = progressMap.querySelectorAll('.progress-icon');
+    if (progressIcons[currentRiddleIndex]) {
+        progressIcons[currentRiddleIndex].classList.remove('fa-circle', 'opacity-70');
+        progressIcons[currentRiddleIndex].classList.add(correct ? 'fa-check-circle' : 'fa-times-circle', 'completed');
+        progressIcons[currentRiddleIndex].style.color = correct ? '#00FF00' : '#FF0000';
+    }
 }
 
 // ------------------------- SUBMIT ANSWER -------------------------
 submitBtn.addEventListener('click', async () => {
-    const userAnswer = answerInput.value.trim().toUpperCase();
-    if (!userAnswer) return;
+    const userAnswer = answerInput.value.trim().toUpperCase();
+    if (!userAnswer) return;
 
-    submitBtn.disabled = true;
+    submitBtn.disabled = true;
 
-    attemptsUsed++;
-    let correct = false;
+    attemptsUsed++;
+    let correct = false;
 
-    const currentRiddle = teamRiddles[currentRiddleIndex];
-    try {
-        const res = await fetch(`${backendUrl}?path=checkAnswer&qid=${currentRiddle.qid}&answer=${userAnswer}`);
-        const data = await res.json();
-        
-        if (data.isCorrect) {
-            correct = true;
-            clearInterval(timerInterval);
-            const points = calculatePoints(attemptsUsed);
-            
-            if (userProgress.partialRiddles) {
-                delete userProgress.partialRiddles[currentRiddle.qid];
-            }
-            userProgress.solvedRiddles[currentRiddle.qid] = { attempts: attemptsUsed, score: points };
-            userProgress.currentRiddleIndex = currentRiddleIndex + 1;
-            saveLocalProgress();
+    const currentRiddle = teamRiddles[currentRiddleIndex];
+    try {
+        const res = await fetch(`${backendUrl}?path=checkAnswer&qid=${currentRiddle.qid}&answer=${userAnswer}`);
+        const data = await res.json();
+        
+        if (data.isCorrect) {
+            correct = true;
+            clearInterval(timerInterval);
+            const points = calculatePoints(attemptsUsed);
+            
+            if (userProgress.partialRiddles) {
+                delete userProgress.partialRiddles[currentRiddle.qid];
+            }
+            userProgress.solvedRiddles[currentRiddle.qid] = { attempts: attemptsUsed, score: points };
+            userProgress.currentRiddleIndex = currentRiddleIndex + 1;
+            saveLocalProgress();
 
-            updateScoreDisplay();
-            await updateScoreOnBackend(team.score);
+            // ⭐ Key change is here: Update local score, THEN send to backend
+            updateScoreDisplay();
+            await updateScoreOnBackend(team.score);
 
-            const randomPraise = praises[Math.floor(Math.random() * praises.length)];
-            backText.textContent = `${randomPraise} +${points} points`;
-            if (!muted) correctSound.play();
-            cardInner.style.transform = 'rotateY(180deg)';
-            setTimeout(() => {
-                updateProgress(correct);
-                cardInner.style.transform = 'rotateY(0deg)';
-                currentRiddleIndex++;
-                loadRiddle();
-            }, 2000);
-        } else {
-            if (!muted) wrongSound.play();
-            attemptsLeft--;
-            attemptsText.textContent = `Attempts left: ${attemptsLeft}`;
-            if (attemptsLeft > 0) {
-                if (!userProgress.partialRiddles) userProgress.partialRiddles = {};
-                userProgress.partialRiddles[currentRiddle.qid] = { attemptsUsed: attemptsUsed };
-                saveLocalProgress();
+            const randomPraise = praises[Math.floor(Math.random() * praises.length)];
+            backText.textContent = `${randomPraise} +${points} points`;
+            if (!muted) correctSound.play();
+            cardInner.style.transform = 'rotateY(180deg)';
+            setTimeout(() => {
+                updateProgress(correct);
+                cardInner.style.transform = 'rotateY(0deg)';
+                currentRiddleIndex++;
+                loadRiddle();
+            }, 2000);
+        } else {
+            if (!muted) wrongSound.play();
+            attemptsLeft--;
+            attemptsText.textContent = `Attempts left: ${attemptsLeft}`;
+            if (attemptsLeft > 0) {
+                if (!userProgress.partialRiddles) userProgress.partialRiddles = {};
+                userProgress.partialRiddles[currentRiddle.qid] = { attemptsUsed: attemptsUsed };
+                saveLocalProgress();
 
-                backText.textContent = `Incorrect! Try again.`;
-                cardInner.style.transform = 'rotateY(180deg)';
-                setTimeout(() => {
-                    cardInner.style.transform = 'rotateY(0deg)';
-                    backText.textContent = '';
-                    submitBtn.disabled = false;
-                }, 1500);
-            } else {
-                clearInterval(timerInterval);
-                backText.textContent = `Out of attempts!`;
-                cardInner.style.transform = 'rotateY(180deg)';
-                updateProgress(correct);
-                
-                if (userProgress.partialRiddles) {
-                    delete userProgress.partialRiddles[currentRiddle.qid];
-                }
-                userProgress.currentRiddleIndex = currentRiddleIndex + 1;
-                saveLocalProgress();
+                backText.textContent = `Incorrect! Try again.`;
+                cardInner.style.transform = 'rotateY(180deg)';
+                setTimeout(() => {
+                    cardInner.style.transform = 'rotateY(0deg)';
+                    backText.textContent = '';
+                    submitBtn.disabled = false;
+                }, 1500);
+            } else {
+                clearInterval(timerInterval);
+                backText.textContent = `Out of attempts!`;
+                cardInner.style.transform = 'rotateY(180deg)';
+                updateProgress(correct);
+                
+                if (userProgress.partialRiddles) {
+                    delete userProgress.partialRiddles[currentRiddle.qid];
+                }
+                userProgress.currentRiddleIndex = currentRiddleIndex + 1;
+                saveLocalProgress();
 
-                setTimeout(() => {
-                    cardInner.style.transform = 'rotateY(0deg)';
-                    currentRiddleIndex++;
-                    loadRiddle();
-                }, 2500);
-            }
-        }
-    } catch (error) {
-        console.error('Error checking answer:', error);
-        backText.textContent = "Error checking answer. Please try again.";
-        submitBtn.disabled = false;
-    }
+                setTimeout(() => {
+                    cardInner.style.transform = 'rotateY(0deg)';
+                    currentRiddleIndex++;
+                    loadRiddle();
+                }, 2500);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking answer:', error);
+        backText.textContent = "Error checking answer. Please try again.";
+        submitBtn.disabled = false;
+    }
 });
+
+// ⭐ NEW FUNCTION TO UPDATE SCORE ON BACKEND
+async function updateScoreOnBackend(score) {
+    try {
+        await fetch(`${backendUrl}?path=saveFinalScore`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ rollNumber: team.id, score }),
+        });
+        console.log("Score successfully sent to backend.");
+    } catch (error) {
+        console.error("Failed to send score to backend:", error);
+    }
+}
 
 // ------------------------- SAVE LOCAL PROGRESS -------------------------
 function saveLocalProgress() {
-    localStorage.setItem(`progress_${team.id}`, JSON.stringify(userProgress));
+    localStorage.setItem(`progress_${team.id}`, JSON.stringify(userProgress));
 }
 
 // ------------------------- UPDATE SCORE DISPLAY (LOCAL) -------------------------
 function updateScoreDisplay() {
-    let totalScore = 0;
-    for (const qid in userProgress.solvedRiddles) {
-        totalScore += userProgress.solvedRiddles[qid].score;
-    }
-    team.score = totalScore;
-    scoreDisplay.textContent = `Points: ${team.score}`;
+    let totalScore = 0;
+    for (const qid in userProgress.solvedRiddles) {
+        totalScore += userProgress.solvedRiddles[qid].score;
+    }
+    team.score = totalScore;
+    scoreDisplay.textContent = `Points: ${team.score}`;
 }
 
 // ------------------------- LEADERBOARD (Fetch from backend) -------------------------
 async function updateLeaderboard() {
-    try {
-        const res = await fetch(`${backendUrl}?path=leaderboard`);
-        const data = await res.json();
-        
-        if (!Array.isArray(data)) {
-            console.error("Leaderboard data is not an array:", data);
-            return;
-        }
+    try {
+        const res = await fetch(`${backendUrl}?path=leaderboard`);
+        const data = await res.json();
+        
+        if (!Array.isArray(data)) {
+            console.error("Leaderboard data is not an array:", data);
+            return;
+        }
 
-        data.sort((a, b) => b.score - a.score);
-        leaderboardList.innerHTML = data.map((t, index) => `
-            <li class="leaderboard-item flex justify-between p-2 rounded bg-gray-900 border border-gray-700">
-                <span><i class="fas fa-trophy mr-1 ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : 'text-orange-600'}"></i>${t.name}</span>
-                <span>${t.score} pts</span>
-            </li>
-        `).join('');
-    } catch (error) {
-        console.error('Error fetching leaderboard:', error);
-        leaderboardList.innerHTML = `
-            <li class="leaderboard-item flex justify-between p-2 rounded bg-gray-900 border border-gray-700">
-                <span><i class="fas fa-trophy mr-1 text-yellow-400"></i>${team.name}</span>
-                <span>${team.score} pts</span>
-            </li>
-        `;
-    }
+        data.sort((a, b) => b.score - a.score);
+        leaderboardList.innerHTML = data.map((t, index) => `
+            <li class="leaderboard-item flex justify-between p-2 rounded bg-gray-900 border border-gray-700">
+                <span><i class="fas fa-trophy mr-1 ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : 'text-orange-600'}"></i>${t.name}</span>
+                <span>${t.score} pts</span>
+            </li>
+        `).join('');
+    } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        leaderboardList.innerHTML = `
+            <li class="leaderboard-item flex justify-between p-2 rounded bg-gray-900 border border-gray-700">
+                <span><i class="fas fa-trophy mr-1 text-yellow-400"></i>${team.name}</span>
+                <span>${team.score} pts</span>
+            </li>
+        `;
+    }
 }
 
 // Poll leaderboard every 5s for real-time
@@ -644,57 +661,58 @@ setInterval(updateLeaderboard, 5000);
 
 // ------------------------- FINAL LEADERBOARD -------------------------
 function showFinalLeaderboard() {
-    clearInterval(timerInterval);
-    riddleText.textContent = "🏆 Quest Completed! 🏆";
-    answerInput.style.display = 'none';
-    submitBtn.style.display = 'none';
-    attemptsText.style.display = 'none';
-    timerText.style.display = 'none';
-    backText.textContent = `Final Points: ${team.score}`;
-    cardInner.style.transform = 'rotateY(180deg)';
-    
-    updateScoreOnBackend(team.score);
+    clearInterval(timerInterval);
+    riddleText.textContent = "🏆 Quest Completed! 🏆";
+    answerInput.style.display = 'none';
+    submitBtn.style.display = 'none';
+    attemptsText.style.display = 'none';
+    timerText.style.display = 'none';
+    backText.textContent = `Final Points: ${team.score}`;
+    cardInner.style.transform = 'rotateY(180deg)';
+    
+    // Save the final score one last time
+    updateScoreOnBackend(team.score);
 
-    teamStats.classList.remove('hidden');
-    statsList.innerHTML = Object.keys(userProgress.solvedRiddles).map(qid => {
-        const riddle = userProgress.solvedRiddles[qid];
-        return `<li class="p-1 bg-gray-900 rounded border border-gray-700">Riddle ${qid}: ${riddle.score} pts | ${riddle.attempts} attempts</li>`;
-    }).join('');
+    teamStats.classList.remove('hidden');
+    statsList.innerHTML = Object.keys(userProgress.solvedRiddles).map(qid => {
+        const riddle = userProgress.solvedRiddles[qid];
+        return `<li class="p-1 bg-gray-900 rounded border border-gray-700">Riddle ${qid}: ${riddle.score} pts | ${riddle.attempts} attempts</li>`;
+    }).join('');
 
-    setTimeout(() => {
-        window.location.href = 'thankyou.html';
-    }, 10000);
+    setTimeout(() => {
+        window.location.href = 'thankyou.html';
+    }, 10000);
 }
 
 // ------------------------- SMOOTH PARALLAX EFFECT -------------------------
 function lerp(start, end, factor) {
-    return start + (end - start) * factor;
+    return start + (end - start) * factor;
 }
 
 document.addEventListener('mousemove', (e) => {
-    const { clientX, clientY } = e;
-    const { innerWidth: w, innerHeight: h } = window;
-    targetX = (clientX / w * 2 - 1) * 5;
-    targetY = (clientY / h * 2 - 1) * 5;
+    const { clientX, clientY } = e;
+    const { innerWidth: w, innerHeight: h } = window;
+    targetX = (clientX / w * 2 - 1) * 5;
+    targetY = (clientY / h * 2 - 1) * 5;
 });
 
 document.addEventListener('touchmove', (e) => {
-    const touch = e.touches[0];
-    const { innerWidth: w, innerHeight: h } = window;
-    targetX = (touch.clientX / w * 2 - 1) * 5;
-    targetY = (touch.clientY / h * 2 - 1) * 5;
+    const touch = e.touches[0];
+    const { innerWidth: w, innerHeight: h } = window;
+    targetX = (touch.clientX / w * 2 - 1) * 5;
+    targetY = (touch.clientY / h * 2 - 1) * 5;
 });
 
 function updateParallax() {
-    mouseX = lerp(mouseX, targetX, 0.1);
-    mouseY = lerp(mouseY, targetY, 0.1);
+    mouseX = lerp(mouseX, targetX, 0.1);
+    mouseY = lerp(mouseY, targetY, 0.1);
 
-    parallaxElements.forEach(el => {
-        el.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
-    });
+    parallaxElements.forEach(el => {
+        el.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
+    });
 
-    parallaxBg.style.transform = `translate(${mouseX/2}px, ${mouseY/2}px) scale(1.2)`;
-    requestAnimationFrame(updateParallax);
+    parallaxBg.style.transform = `translate(${mouseX/2}px, ${mouseY/2}px) scale(1.2)`;
+    requestAnimationFrame(updateParallax);
 }
 
 // Start parallax animation
