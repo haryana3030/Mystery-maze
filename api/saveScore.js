@@ -8,7 +8,7 @@ export default async (req, res) => {
   }
 
   // Google Apps Script URL. Use the latest one from your deployment.
-  const backendUrl = "https://script.google.com/macros/s/AKfycbwnwg0Lhrox9YLkcajbZP6_9bS2QeS-3XDTDth8TDV5ptSwFYQZLriK16Dkmtvw2j2Mdw/exec";
+  const backendUrl = "https://script.google.com/macros/s/AKfycbxEerD8jG1VbdXT_-2SgRF8FHJwGvz6jl3_lxdgyliAOXHRrivROit1zFhCaUSjEIZytA/exec";
   const googleAppsScriptUrl = `${backendUrl}?path=saveFinalScore`;
 
   try {
