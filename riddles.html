@@ -251,7 +251,7 @@
     <div id="parallax-bg"></div>
 
     <header class="header flex justify-between items-center w-full z-10">
-        <h1 class="text-2xl font-['Harry_P'] text-yellow-400 sm:text-3xl md:text-4xl">⚡ Riddle ssQuest ⚡</h1>
+        <h1 class="text-2xl font-['Harry_P'] text-yellow-400 sm:text-3xl md:text-4xl">⚡ Riddle Quest ⚡</h1>
         <div class="flex items-center space-x-2 sm:space-x-4">
             <span id="score-display" class="text-base sm:text-xl">Points: 0</span>
             <button id="mute-btn" class="px-2 py-1 bg-gray-800 rounded hover:bg-gray-700"><i class="fas fa-volume-up"></i></button>
@@ -296,12 +296,12 @@
 <script>
 // ------------------------- MOCK DATA (REMOVED) -------------------------
 let team = {
-    id: null, // This will be the roll number from localStorage
+    id: null,
     name: "Gryffindor",
     score: 0
 };
 
-let userProgress = {}; // New object to store progress from the sheet
+let userProgress = {};
 
 const praises = [
     "Bravo!", "Excellent!", "Lightning fast!", "Well done!", "Impressive!", "Superb!", "Outstanding!", "Magnificent!", "Brilliant!", "Fantastic!"
@@ -483,8 +483,16 @@ function loadRiddle() {
         return;
     }
     
-    attemptsUsed = 0;
-    attemptsLeft = maxAttempts;
+    // Corrected logic: attemptsUsed should be 0 for a new riddle, and attemptsLeft is maxAttempts.
+    // If the riddle has been partially attempted, load the attempts from local storage.
+    if (userProgress.partialRiddles && userProgress.partialRiddles[currentRiddle.qid]) {
+        attemptsUsed = userProgress.partialRiddles[currentRiddle.qid].attemptsUsed;
+        attemptsLeft = maxAttempts - attemptsUsed;
+    } else {
+        attemptsUsed = 0;
+        attemptsLeft = maxAttempts;
+    }
+
     attemptsText.textContent = `Attempts left: ${attemptsLeft}`;
     answerInput.value = '';
     riddleText.textContent = currentRiddle.question;
@@ -534,6 +542,8 @@ submitBtn.addEventListener('click', async () => {
             clearInterval(timerInterval);
             const points = calculatePoints(attemptsUsed);
             
+            // Move from partial riddles to solved riddles
+            delete userProgress.partialRiddles[currentRiddle.qid];
             userProgress.solvedRiddles[currentRiddle.qid] = { attempts: attemptsUsed, score: points };
             userProgress.currentRiddleIndex = currentRiddleIndex + 1;
             saveLocalProgress();
@@ -554,6 +564,11 @@ submitBtn.addEventListener('click', async () => {
             attemptsLeft--;
             attemptsText.textContent = `Attempts left: ${attemptsLeft}`;
             if (attemptsLeft > 0) {
+                // Save partial progress for this riddle
+                if (!userProgress.partialRiddles) userProgress.partialRiddles = {};
+                userProgress.partialRiddles[currentRiddle.qid] = { attemptsUsed: attemptsUsed };
+                saveLocalProgress();
+
                 backText.textContent = `Incorrect! Try again.`;
                 cardInner.style.transform = 'rotateY(180deg)';
                 setTimeout(() => {
@@ -566,8 +581,12 @@ submitBtn.addEventListener('click', async () => {
                 backText.textContent = `Out of attempts!`;
                 cardInner.style.transform = 'rotateY(180deg)';
                 updateProgress(correct);
+                
+                // Clear partial progress and advance
+                delete userProgress.partialRiddles[currentRiddle.qid];
                 userProgress.currentRiddleIndex = currentRiddleIndex + 1;
                 saveLocalProgress();
+
                 setTimeout(() => {
                     cardInner.style.transform = 'rotateY(0deg)';
                     currentRiddleIndex++;
