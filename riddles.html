@@ -296,7 +296,7 @@
 <script>
 // ------------------------- MOCK DATA (REMOVED) -------------------------
 let team = {
-    id: null,
+    id: null, // This will be the roll number from localStorage
     name: "Gryffindor",
     score: 0
 };
@@ -309,7 +309,7 @@ const praises = [
 
 // ------------------------- GOOGLE APPS SCRIPT URL -------------------------
 // !!! IMPORTANT: Replace this with your actual deployed Apps Script URL !!!
-const backendUrl = "https://script.google.com/macros/s/AKfycbzFuMvcE3ej8A1Tgn-br7OvWWp6sK0Tt-ImHd9EfGkefNOFX6lLO-bWDn3yw0nXeZ0fSw/exec";
+const backendUrl = "https://script.google.com/macros/s/AKfycbyEQbwuoNvgunHE6dr9bGBU1fyJm7O-e4vRQiU3ki9Dc5v9IQHOg-RDNKktnBX_9nJfyQ/exec";
 
 let allRiddles = [];
 let teamRiddles = [];
@@ -483,8 +483,7 @@ function loadRiddle() {
         return;
     }
     
-    // Corrected logic: attemptsUsed should be 0 for a new riddle, and attemptsLeft is maxAttempts.
-    // If the riddle has been partially attempted, load the attempts from local storage.
+    // Corrected logic: Check if the riddle has been partially attempted
     if (userProgress.partialRiddles && userProgress.partialRiddles[currentRiddle.qid]) {
         attemptsUsed = userProgress.partialRiddles[currentRiddle.qid].attemptsUsed;
         attemptsLeft = maxAttempts - attemptsUsed;
@@ -543,7 +542,9 @@ submitBtn.addEventListener('click', async () => {
             const points = calculatePoints(attemptsUsed);
             
             // Move from partial riddles to solved riddles
-            delete userProgress.partialRiddles[currentRiddle.qid];
+            if (userProgress.partialRiddles) {
+                delete userProgress.partialRiddles[currentRiddle.qid];
+            }
             userProgress.solvedRiddles[currentRiddle.qid] = { attempts: attemptsUsed, score: points };
             userProgress.currentRiddleIndex = currentRiddleIndex + 1;
             saveLocalProgress();
@@ -583,7 +584,9 @@ submitBtn.addEventListener('click', async () => {
                 updateProgress(correct);
                 
                 // Clear partial progress and advance
-                delete userProgress.partialRiddles[currentRiddle.qid];
+                if (userProgress.partialRiddles) {
+                    delete userProgress.partialRiddles[currentRiddle.qid];
+                }
                 userProgress.currentRiddleIndex = currentRiddleIndex + 1;
                 saveLocalProgress();
 
