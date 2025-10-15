@@ -540,7 +540,7 @@ submitBtn.addEventListener('click', async () => {
             userProgress.currentRiddleIndex = currentRiddleIndex + 1;
             saveLocalProgress();
 
-            // Corrected logic: Update local score, THEN send to backend
+            // ⭐ Key change is here: Update local score, THEN send to backend
             updateScoreDisplay();
             await updateScoreOnBackend(team.score);
 
