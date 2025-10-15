@@ -298,7 +298,7 @@
 // Remove the const riddles = [...] array
 
 let team = {
-    id: "TEAM01", // This can be a placeholder as we'll generate a unique user ID
+    id: "TEAM01",
     name: "Gryffindor",
     score: 0
 };
@@ -326,11 +326,9 @@ let allRiddles = [];
 let teamRiddles = [];
 
 // ------------------------- UNIQUE USER IDENTIFIER & SEEDED SHUFFLE -------------------------
-// Generate a unique user ID if one doesn't exist
 function getOrCreateUserId() {
     let userId = localStorage.getItem('riddleQuestUserId');
     if (!userId) {
-        // Generate a random ID (e.g., using a timestamp and a random number)
         userId = 'user_' + new Date().getTime() + Math.random().toString(36).substring(2, 10);
         localStorage.setItem('riddleQuestUserId', userId);
     }
@@ -338,7 +336,7 @@ function getOrCreateUserId() {
 }
 
 const userId = getOrCreateUserId();
-team.id = userId; // Assign the unique ID to the team object
+team.id = userId;
 
 function hashString(str) {
     let hash = 0;
@@ -371,7 +369,7 @@ function shuffleArray(array, seed) {
 // ------------------------- GAME STATE -------------------------
 let currentRiddleIndex = 0;
 let attemptsUsed = 0;
-let maxAttempts = 4;
+let maxAttempts = 5; // Updated to 5 attempts
 let attemptsLeft = maxAttempts;
 let timer = 0;
 let timerInterval = null;
@@ -420,10 +418,8 @@ async function initGame() {
         
         if (data.success && data.questions && data.questions.length > 0) {
             allRiddles = data.questions;
-            // Shuffle using the unique user ID
-            teamRiddles = shuffleArray([...allRiddles], userId); 
+            teamRiddles = shuffleArray([...allRiddles], userId);
             
-            // Re-initialize progress map
             progressMap.innerHTML = '';
             teamRiddles.forEach(() => {
                 const span = document.createElement('i');
@@ -455,7 +451,7 @@ muteBtn.addEventListener('click', () => {
 function startTimer() {
     timer = 0;
     timerText.textContent = "Time: 0s";
-    clearInterval(timerInterval); // Clear any existing timer
+    clearInterval(timerInterval);
     timerInterval = setInterval(() => {
         timer++;
         timerText.textContent = `Time: ${timer}s`;
@@ -475,6 +471,7 @@ function loadRiddle() {
     riddleText.textContent = teamRiddles[currentRiddleIndex].question;
     backText.textContent = '';
     cardInner.style.transform = 'rotateY(0deg)';
+    submitBtn.disabled = false; // Enable the button for the new riddle
     startTimer();
 }
 
@@ -483,8 +480,8 @@ function calculatePoints(attempt) {
     if (attempt === 1) return 10;
     if (attempt === 2) return 8;
     if (attempt === 3) return 6;
-    if (attempt === 4) return 2;
-    if (attempt === 5) return 1;
+    if (attempt === 4) return 4; // Adjusted points for 4th attempt
+    if (attempt === 5) return 2; // Adjusted points for 5th attempt
     return 0;
 }
 
@@ -503,10 +500,11 @@ submitBtn.addEventListener('click', async () => {
     const userAnswer = answerInput.value.trim().toUpperCase();
     if (!userAnswer) return;
 
+    submitBtn.disabled = true; // Disable the button immediately
+
     attemptsUsed++;
     let correct = false;
 
-    // Check answer using a new backend endpoint
     const currentRiddle = teamRiddles[currentRiddleIndex];
     try {
         const res = await fetch(`${backendUrl}?path=checkAnswer&qid=${currentRiddle.qid}&answer=${userAnswer}`);
@@ -522,7 +520,7 @@ submitBtn.addEventListener('click', async () => {
             backText.textContent = `${randomPraise} +${points} points`;
             if (!muted) correctSound.play();
             cardInner.style.transform = 'rotateY(180deg)';
-            saveRiddleResult(correct, points);
+            await saveRiddleResult(correct, points);
             updateLeaderboard();
             setTimeout(() => {
                 updateProgress(correct);
@@ -540,12 +538,13 @@ submitBtn.addEventListener('click', async () => {
                 setTimeout(() => {
                     cardInner.style.transform = 'rotateY(0deg)';
                     backText.textContent = '';
+                    submitBtn.disabled = false; // Re-enable for another attempt
                 }, 1500);
             } else {
                 clearInterval(timerInterval);
                 backText.textContent = `Out of attempts!`;
                 cardInner.style.transform = 'rotateY(180deg)';
-                saveRiddleResult(correct, 0);
+                await saveRiddleResult(correct, 0);
                 setTimeout(() => {
                     updateProgress(correct);
                     cardInner.style.transform = 'rotateY(0deg)';
@@ -557,6 +556,7 @@ submitBtn.addEventListener('click', async () => {
     } catch (error) {
         console.error('Error checking answer:', error);
         backText.textContent = "Error checking answer. Please try again.";
+        submitBtn.disabled = false; // Re-enable on error
     }
 });
 
@@ -585,7 +585,6 @@ async function saveRiddleResult(correct, points) {
         console.error('Error saving result:', error);
     }
 }
-
 
 // ------------------------- LEADERBOARD -------------------------
 async function updateLeaderboard() {
